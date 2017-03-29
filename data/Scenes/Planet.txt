@@ -1,0 +1,14 @@
+PLIGHT
+0.0,1.0,334.0,1.0,1.0,1.0
+DIRLIGHT
+0.0,-12.0,-24.0,1.0,1.0,1.0
+AMBIENCE
+0.0,0.0,0.0
+SPHERE
+1,0.0,0.0,9.0,1.0,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,\data\Textures\world.png,\data\Textures\world.png
+SPHERE
+2,3.0,0.0,9.0,0.3,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,\data\Textures\moon.jpg,\data\Textures\moon.jpg
+SPHERE
+2,-3.0,0.0,24.0,6.0,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,\data\Textures\Jupiter.jpg,\data\Textures\Jupiter.jpg
+SPHERE
+2,5.0,0.0,9.0,0.9,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,\data\Textures\Mars.jpg,\data\Textures\Mars.jpg
