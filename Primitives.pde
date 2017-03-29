@@ -58,6 +58,18 @@
     PImage Tex,BumpM;
     boolean hastex, hasbumpmap;//bumpmap & texture
     
+    //beer lambert
+    float C = 0.10;//Density of matter
+    
+    //cook torrence
+    boolean isct = false;
+    float roughnessval = 0.3;
+    float fresreflect = 0.8;
+    float k  = 0.2;
+    
+    
+    
+    
     //default constructor
     rMaterial(){//default values, values dont matter
       diffuseD = 1.0;
@@ -72,9 +84,14 @@
       hastex= false;
       BumpM = new PImage();
       hasbumpmap = false;
+      C = 0.15;
+      isct = false;//default not cook torrence
+      roughnessval = 0.3;
+      fresreflect = 0.8;
+      k  = 0.2;
     }
-    //constructior
-    rMaterial(float _diffuseD, PVector _diffuseCol, float _specularE, PVector _specularCol, PVector _emissiveCol, float _reflectionD, float _refractamnt, float _refractIndex){
+    //constructior + cooktorrence
+    rMaterial(float _diffuseD, PVector _diffuseCol, float _specularE, PVector _specularCol, PVector _emissiveCol, float _reflectionD, float _refractamnt, float _refractIndex, float dbeersConstant, float _roughnessval, float _fresreflect, float _k){
      diffuseD = _diffuseD;
      diffuseCol = _diffuseCol;
      specularE = _specularE;
@@ -87,6 +104,32 @@
      hastex = false;
      BumpM = new PImage();
      hasbumpmap = false;
+     C = dbeersConstant;
+     isct = true;//using ct constructoer means ct enabled
+     roughnessval = _roughnessval;
+     fresreflect = _fresreflect;
+     k  = _k;
+    }
+    
+     //constructior + Phong
+    rMaterial(float _diffuseD, PVector _diffuseCol, float _specularE, PVector _specularCol, PVector _emissiveCol, float _reflectionD, float _refractamnt, float _refractIndex, float dbeersConstant){
+     diffuseD = _diffuseD;
+     diffuseCol = _diffuseCol;
+     specularE = _specularE;
+     specularCol = _specularCol;
+     emissiveCol = _emissiveCol;
+     reflectionD = _reflectionD;
+     refractionAmnt = _refractamnt;
+     refractIndex = _refractIndex;
+     Tex = new PImage();
+     hastex = false;
+     BumpM = new PImage();
+     hasbumpmap = false;
+     C = dbeersConstant;
+     isct = false;//default not cook torrence
+     roughnessval = 0.3;
+     fresreflect = 0.8;
+     k  = 0.2;
     }
     
     void setTexture(String File){

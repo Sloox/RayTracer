@@ -1,7 +1,8 @@
 //basic class to render a scene
 //renders pixel by pixel keeping all vars in global state for return to main screen
-
+import java.lang.Math;
 class Renderer{
+  
   
   //globals for state
     vMath Mathutils;
@@ -10,23 +11,48 @@ class Renderer{
     CollisionHelper CH, CHTemp, CHRefract;//CHTemp used in PointToPointCheck to keep original CH state
     SceneHandler SceneH;
     float[] RGBGlobal;
-    float gamma;
-    int infinitetextureScale = 32;//for infinte planes
     
+    int infinitetextureScale = 32;//for infinte planes
+    float TEXFILTEROFFSET = 0.05;
+    int rendertype = 2;
+    float[] RGBDEBEEROFFSET = new float[]{1.0,1.0,1.0};
+    boolean AO = true;
+    int AORAYS = 64;
+    
+    boolean PFXGamma = false;
+    float gamma;
+    
+    boolean TMap = false;
+    float kexp;
+    int kpower;
+    
+    boolean ConstrainBrightness = true;
+    
+    int MAXRENDERDISTANCE = 999;
+     PVector Reso, ScreenVecorLocation;
     
   Renderer(PVector MPos, PVector Res, int _raybouncemax, float _gamma){//constructor
     Mathutils = new vMath();
     raybouncemax = _raybouncemax;
+    Reso = Res;
     //Asuming default for now
     //SceneH = new SceneHandler(sketchPath("data\\Scenes\\Lorem.txt"));
-   // SceneH = new SceneHandler(sketchPath("data\\Scenes\\tunnel.txt"));
-   // SceneH = new SceneHandler(sketchPath("data\\Scenes\\planet.txt"));
+    //SceneH = new SceneHandler(sketchPath("data\\Scenes\\tunnel.txt"));
+   // SceneH = new SceneHandler(sketchPath("data\\Scenes\\Stest.txt"));
+    //SceneH = new SceneHandler(sketchPath("data\\Scenes\\planet.txt"));
     // SceneH = new SceneHandler(sketchPath("data\\Scenes\\planes.txt"));
-  SceneH = new SceneHandler();
+    SceneH = new SceneHandler(sketchPath("data\\Scenes\\air.txt"));
+    //SceneH = new SceneHandler(sketchPath("data\\Scenes\\CTtest.txt"));
+  //SceneH = new SceneHandler();
     rCam = new RendererCamera( MPos, Res, new PVector(0.0,0.0,0.0));
-    RGBGlobal = new float[]{0.0,0.0,0.0};
+    RGBGlobal = new float[]{0.0,0.0,0.0}; RGBDEBEEROFFSET = new float[]{1.0,1.0,1.0};
     gamma = _gamma;
+    //LoadConfig(sketchPath("data\\Config\\C1.txt"));
+    
   }
+  
+  
+  
   
   void updateCamMouse(PVector MPos, PVector Res){
      rCam = new RendererCamera( MPos, Res, new PVector(0.0,0.0,0.0));
@@ -36,9 +62,10 @@ class Renderer{
   
   //base raytracing 
   float[] calcPixelColor_NOSSA(float x, float y, int xRes, int yRes){
-    RGBGlobal = new float[]{0.0,0.0,0.0};
+    RGBGlobal = new float[]{0.0,0.0,0.0}; RGBDEBEEROFFSET = new float[]{1.0,1.0,1.0}; 
     //screen coords   
     PVector screenVec = new PVector(x,y);
+    ScreenVecorLocation = screenVec.get();
     PVector ResVec = new PVector(xRes,yRes);
     PVector cPercent = Mathutils.componendDiv2(screenVec,ResVec);
     PVector nPercent = Mathutils.subVect(cPercent, new PVector(0.5,0.5));
@@ -58,17 +85,24 @@ class Renderer{
     PVector rayDir = Mathutils.normalizeVect(rayTarget);
     
     RGBGlobal = rayTraceRefraction(rayPos, rayDir, raybouncemax);
+    
     //RGBGlobal = ApplyToneMap(RGBGlobal);
     //RGBGlobal = ApplyGamma(RGBGlobal,gamma );
-    return RGBGlobal; 
+    RGBGlobal =new float[]{RGBGlobal[0]*0.55,RGBGlobal[1]*0.55,RGBGlobal[2]*0.55};
+    
+    return ApplyPostFX(RGBGlobal) ; 
    }
+   
+   
+  
    
    
   //random offset for each pixel
   float[] calcPixelColor_STOCHASTICSSA(float x, float y, int xRes, int yRes, int Samples, float offsetMin, float offsetMax){
-    RGBGlobal = new float[]{0.0,0.0,0.0};
+    RGBGlobal = new float[]{0.0,0.0,0.0}; RGBDEBEEROFFSET = new float[]{1.0,1.0,1.0};
     //screen coords   
     PVector screenVec = new PVector(x,y);
+    ScreenVecorLocation = screenVec.get();
     PVector ResVec = new PVector(xRes,yRes);
     ArrayList<float[]> Cols = new ArrayList<float[]>();
     for(int i = 0;i<Samples;++i){
@@ -98,18 +132,16 @@ class Renderer{
       RGBGlobal = new float[]{RGBGlobal[0]+ff[0],RGBGlobal[1]+ff[1],RGBGlobal[2]+ff[2]};
     }
     RGBGlobal = new float[]{RGBGlobal[0]/(Samples*Samples),RGBGlobal[1]/(Samples*Samples),RGBGlobal[2]/(Samples*Samples)};//average out pixels and return color
-    //post FX
-   // RGBGlobal = ApplyToneMap(RGBGlobal);
-   // RGBGlobal = ApplyGamma(RGBGlobal,gamma);
+   
     
-    return RGBGlobal; 
+    return ApplyPostFX(RGBGlobal); 
    }
    
    
    
    float[] calcPixelColor_STOCHASTICREGULARSSA_18(float x, float y, int xRes, int yRes, float offset){//SSA via grid patteren
-      RGBGlobal = new float[]{0.0,0.0,0.0};
-      
+      RGBGlobal = new float[]{0.0,0.0,0.0}; RGBDEBEEROFFSET = new float[]{1.0,1.0,1.0};
+      ScreenVecorLocation = new PVector(x,y);
       ArrayList<float[]> Cols = new ArrayList<float[]>();
         Cols.add(calcPixelColor_NOSSA(x,y,xRes,yRes));//base ray
         Cols.add(calcPixelColor_NOSSA(x+offset,y,xRes,yRes));//right
@@ -126,13 +158,13 @@ class Renderer{
       for(float[] ff : Cols){
         RGBGlobal = new float[]{RGBGlobal[0]+ff[0],RGBGlobal[1]+ff[1],RGBGlobal[2]+ff[2]};
       }
-      RGBGlobal = new float[]{RGBGlobal[0]/(11.0),RGBGlobal[1]/(11.0),RGBGlobal[2]/(11.0)};//average out pixels and return color
-      return RGBGlobal;
+      RGBGlobal = new float[]{RGBGlobal[0]/(14.0),RGBGlobal[1]/(14.0),RGBGlobal[2]/(14.0)};//average out pixels and return color
+      return ApplyPostFX(RGBGlobal);
     }
    
     float[] calcPixelColor_REGULARSSA_9(float x, float y, int xRes, int yRes, float offset){//SSA via grid patteren
-      RGBGlobal = new float[]{0.0,0.0,0.0};
-      
+      RGBGlobal = new float[]{0.0,0.0,0.0}; RGBDEBEEROFFSET = new float[]{1.0,1.0,1.0};
+      ScreenVecorLocation = new PVector(x,y);
       ArrayList<float[]> Cols = new ArrayList<float[]>();
         Cols.add(calcPixelColor_NOSSA(x,y,xRes,yRes));//base ray
         Cols.add(calcPixelColor_NOSSA(x+offset,y,xRes,yRes));//right
@@ -147,13 +179,13 @@ class Renderer{
       for(float[] ff : Cols){
         RGBGlobal = new float[]{RGBGlobal[0]+ff[0],RGBGlobal[1]+ff[1],RGBGlobal[2]+ff[2]};
       }
-      RGBGlobal = new float[]{RGBGlobal[0]/(10.0),RGBGlobal[1]/(10.0),RGBGlobal[2]/(10.0)};//average out pixels and return color
-      return RGBGlobal;
+      RGBGlobal = new float[]{RGBGlobal[0]/(12.0),RGBGlobal[1]/(12.0),RGBGlobal[2]/(12.0)};//average out pixels and return color
+      return ApplyPostFX(RGBGlobal);
     }
     
     float[] calcPixelColor_REGULARSSA_5(float x, float y, int xRes, int yRes, float offset){//SSA via grid patteren
-      RGBGlobal = new float[]{0.0,0.0,0.0};
-      
+      RGBGlobal = new float[]{0.0,0.0,0.0}; RGBDEBEEROFFSET = new float[]{1.0,1.0,1.0};
+      ScreenVecorLocation = new PVector(x,y);
       ArrayList<float[]> Cols = new ArrayList<float[]>();
         Cols.add(calcPixelColor_NOSSA(x,y,xRes,yRes));//base ray
         Cols.add(calcPixelColor_NOSSA(x+offset,y,xRes,yRes));//right
@@ -164,16 +196,17 @@ class Renderer{
       for(float[] ff : Cols){
         RGBGlobal = new float[]{RGBGlobal[0]+ff[0],RGBGlobal[1]+ff[1],RGBGlobal[2]+ff[2]};
       }
-      RGBGlobal = new float[]{RGBGlobal[0]/(6.0),RGBGlobal[1]/(6.0),RGBGlobal[2]/(6.0)};//average out pixels and return color
-      return RGBGlobal;
+      RGBGlobal = new float[]{RGBGlobal[0]/(7.0),RGBGlobal[1]/(7.0),RGBGlobal[2]/(7.0)};//average out pixels and return color
+      return ApplyPostFX(RGBGlobal);
     }
    
    
   //Calcs first pass, looks for edges then gets next pass 
    PImage calcPixelColor_ADAPTIVESSA(int xMin, int yMin,int xMax, int yMax ,int xRes, int yRes){
-    RGBGlobal = new float[]{0.0,0.0,0.0};
+    RGBGlobal = new float[]{0.0,0.0,0.0}; RGBDEBEEROFFSET = new float[]{1.0,1.0,1.0};
     //error check TODO
     //first pass
+    
     int fpWidth = (int)((xMax)-xMin);
     int fpHeight = (int)((yMax)-yMin);
     
@@ -181,22 +214,23 @@ class Renderer{
     int xOffset = 0;
     int yOffset = 0;
     float[] fpRGB = new float[]{0.0,0.0,0.0};
-    for(int i = xMin;i<=xMax;++i){
-      for(int j = yMin;j<=yMax;++j){
+    for(int i = xMin;i<xMax;++i){
+      for(int j = yMin;j<yMax;++j){
         fpRGB = calcPixelColor_NOSSA(i,j,xRes,yRes);
         firstPass.pixels[fpWidth*yOffset+xOffset] = color(fpRGB[0]*255,fpRGB[1]*255,fpRGB[2]*255);
-        
+        yOffset++;
       }
      xOffset++;
      yOffset = 0; 
     }//first pass of image done!
     //get edges
-    xOffset = 0;
-    yOffset = 0;
+    
     SobelEdgeDetection SB = new SobelEdgeDetection();
+   
     PImage edgedFirst =  SB.findEdgesAll(firstPass,90);//we now have the edges
+    xOffset = 0;
+
     //check edge response, if its beyond a certain threshold, supersample it to hell and gone
-    float edgeOffset = 0.0;
     int k =0;
     int l = 0;
     ArrayList<float[]> PixelFlag = new ArrayList<float[]>();
@@ -207,34 +241,46 @@ class Renderer{
            for(l = j-1;l<(j+1);++l){
              if(k>0&&l>0)
                if(k<fpWidth&&l<fpHeight){
-                 if (red(edgedFirst.pixels[fpWidth*l+k])==255)
+                 if (red(edgedFirst.pixels[fpWidth*l+k])!=255)
                   ++amount; 
                }
            }
-           edgeOffset = amount/9.0;
-           if(edgeOffset>0.30){
+        ;
+           if(amount>3){
              PixelFlag.add(new float[]{i,j});
            }
       }
-     
+
       float[] NewRGB;
       for(float[] Coords : PixelFlag){
-         NewRGB = calcPixelColor_REGULARSSA_9(Coords[0]+xMin,Coords[1]+yMin,xRes,yRes,0.1);
+         NewRGB = ApplyPostFX(calcPixelColor_REGULARSSA_9(Coords[0]+xMin,Coords[1]+yMin,xRes,yRes,0.3));
          firstPass.pixels[(int)(fpWidth*(Coords[1])+Coords[0])] = color(NewRGB[0]*255,NewRGB[1]*255,NewRGB[2]*255);
       }
+    
     return firstPass; 
    }
    
    
      
   //PostFX
-  
- float[] ApplyToneMap(float[] RGBIN){
-   float kExposure = 0.8;
+ float[] ApplyPostFX(float[] RGBg){
+     if(PFXGamma){
+       RGBg =  ApplyGamma(RGBg,gamma);
+     }
+     if(TMap){
+       RGBg =  ApplyToneMap(RGBg,kexp,kpower);
+     }
+     if(ConstrainBrightness){
+       RGBg = new float[]{ (float)(java.lang.Math.tanh(RGBg[0])),(float)(java.lang.Math.tanh(RGBg[1])),(float)(java.lang.Math.tanh(RGBg[2]))};
+     }
+     return RGBg;
+     
+   }
+ float[] ApplyToneMap(float[] RGBIN, float kExposure, int kPower){
    
-   float rTM =pow(52,RGBIN[0]-kExposure);
-   float gTM =pow(52,RGBIN[1]-kExposure);
-   float bTM =pow(52,RGBIN[2]-kExposure);
+   float rTM =pow(kPower,RGBIN[0]-kExposure);
+   float gTM =pow(kPower,RGBIN[1]-kExposure);
+   float bTM =pow(kPower,RGBIN[2]-kExposure);
    
    return new float[]{rTM,gTM,bTM};
    
@@ -247,6 +293,8 @@ class Renderer{
    return new float[]{rTM,gTM,bTM};
    
  }
+ 
+
   
   
   
@@ -282,12 +330,7 @@ class Renderer{
          //apply lighting
          //add texture cols
          if(CH.HitObjectMaterial.hastex==true){//has texture now change the diffuse cols
-           if(CH.type==2)//sphere
-             CH.HitObjectMaterial.diffuseCol = SphereTextureMap(CH.Center,CH.intersectPoint, rayDir,CH);
-            else if(CH.type==1)
-              CH.HitObjectMaterial.diffuseCol = SquareTextureMap(CH.Center,CH.intersectPoint, rayDir,CH);
-             else
-              CH.HitObjectMaterial.diffuseCol = PlaneTextureMap(CH.Center,CH.intersectPoint, rayDir,CH,infinitetextureScale); 
+           CH.HitObjectMaterial.diffuseCol = TextureRender(CH.Center,CH.intersectPoint,rayDir,CH);
          }
         
          for(rDirectionalLight rL: SceneH.DirectionalLights){
@@ -296,25 +339,43 @@ class Renderer{
          for(rPointLight pL: SceneH.PointLights){
              RGBGlobal = ApplyPointLight(RGBGlobal, CH, pL, ColMultiplier, rayDir);
          }
-         //add ambience
-         RGBGlobal = Mathutils.addFloat(RGBGlobal,Mathutils.toFloat(Mathutils.componentMult(Mathutils.scalarMult(CH.HitObjectMaterial.diffuseCol,CH.HitObjectMaterial.diffuseD*ColMultiplier),SceneH.Ambience.ambienceCol)));
+         
+         float AOAcum = 1.0;
+         //Ambient Occulision
+         if(AO){//AORAYS = 4
+           AOAcum*=Ambient_occlusion(CH, rayDir);
+           RGBGlobal = Mathutils.addFloat(RGBGlobal,Mathutils.toFloat(Mathutils.componentMult(Mathutils.scalarMult(CH.HitObjectMaterial.diffuseCol,CH.HitObjectMaterial.diffuseD*ColMultiplier),Mathutils.scalarMult(SceneH.Ambience.ambienceCol,AOAcum))));
+         }else{
+           //add ambience
+           RGBGlobal = Mathutils.addFloat(RGBGlobal,Mathutils.toFloat(Mathutils.componentMult(Mathutils.scalarMult(CH.HitObjectMaterial.diffuseCol,CH.HitObjectMaterial.diffuseD*ColMultiplier),SceneH.Ambience.ambienceCol)));
+         }
+         
+         
          // + Emmisive for complete Phongmodel
          RGBGlobal = Mathutils.addFloat(RGBGlobal,Mathutils.toFloat(Mathutils.scalarMult(CH.HitObjectMaterial.emissiveCol,ColMultiplier)));
          //phong done!
          //refract
          if(CH.HitObjectMaterial.refractionAmnt>0.0){//object has refraction amount so do it!
-           if(CH.inside)//insde means the normal must inverse because we may need to travel througnit
-             CH.surfaceNormal = Mathutils.scalarMult(CH.surfaceNormal,-1.0);
+           if(CH.inside){//insde means the normal must inverse because we may need to travel througnit
+              CH.surfaceNormal = Mathutils.scalarMult(CH.surfaceNormal,-1.0);
+              CH.distFinal = PVector.dist(CH.intersectPoint,CH.diststartrefracthit);
+              CH.diststartrefracthit = new PVector(0.0,0.0,0.0);
+              RGBDEBEEROFFSET = new float[]{RGBDEBEEROFFSET[0]*exp(RGBDEBEEROFFSET[0]*CH.HitObjectMaterial.C*CH.distFinal*-1),RGBDEBEEROFFSET[1]*exp(RGBDEBEEROFFSET[1]*CH.HitObjectMaterial.C*CH.distFinal*-1),RGBDEBEEROFFSET[2]*exp(RGBDEBEEROFFSET[2]*CH.HitObjectMaterial.C*CH.distFinal*-1)};
+              
+           }else{
+              CH.diststartrefracthit = CH.intersectPoint.get();//make clone
+           }
+             
              //as mentioned if we hit an object we gotta travel through it
              //therfore cant ignore it anymore
              lastHitID = 0;//reset
              //also need to move the ray a tiny amount pass the collision so no re-intersect occurs on the retrace
-             rayPos = Mathutils.addVect(CH.intersectPoint,Mathutils.scalarMult(rayDir,0.0001));
+             rayPos = Mathutils.addVect(CH.intersectPoint,Mathutils.scalarMult(rayDir,0.01));
              //and do the refraction according to snell law which is simplified as  R = eta * I - (eta * dot(N, I) + sqrt(k)) * N;
              rayDir = refract(rayToCamDir, CH.surfaceNormal,CH.HitObjectMaterial.refractIndex);
              ColMultiplier *= CH.HitObjectMaterial.refractionAmnt;
              if(ColMultiplier<0.06)
-               return RGBGlobal;
+               return componentMultFloat(RGBGlobal, RGBDEBEEROFFSET);
              
          }else if(CH.HitObjectMaterial.reflectionD>0.0){//reflection?
            rayPos = CH.intersectPoint;
@@ -323,11 +384,11 @@ class Renderer{
            lastHitID = CH.id;
            ColMultiplier *= CH.HitObjectMaterial.reflectionD;
            if(ColMultiplier<0.06)
-             return RGBGlobal;
+             return  componentMultFloat(RGBGlobal, RGBDEBEEROFFSET);
          
          
          }else{//we are done!
-           return RGBGlobal;
+           return componentMultFloat(RGBGlobal, RGBDEBEEROFFSET);
          }
          
        }else{//no hit ! return background col!
@@ -336,29 +397,108 @@ class Renderer{
        }
         
     }
-    return RGBGlobal;
+    return  componentMultFloat(RGBGlobal, RGBDEBEEROFFSET);
     
   }
+  
+ 
+  
+  float Ambient_occlusion(CollisionHelper CH3, PVector rayDir){
+    int i;
+    float ao=0.0;
+    float aototal=0.0;
+    float d;
+    float rn;
+    PVector r;
+    float blinddistance = 0.0;
+    for (i=0; i<AORAYS; i++) {
+      
+      r=rand_vector(CH3.surfaceNormal);
+   
+      blinddistance=SceneIntersectBlindDistance(r, CH3.intersectPoint,CH3.id);
+      rn=Mathutils.dotProduct(r,CH3.surfaceNormal);
+      aototal+=rn;
+      if (blinddistance!=MAXRENDERDISTANCE) {
+        d=blinddistance;
+        d=1.0/(0.02+d*1.0+d*d*0.1);
+        if (d>1.0) {d=1.0;};
+        ao+=d*rn;
+      }
+    }
+    
+    ao=ao/aototal;
+    ao = constrain(ao,0,1.0);
+    return 1.0-ao;
+  }
+
+  
+  PVector rand_vector(PVector IntersectPtNormal) {
+    PVector p =new PVector();
+    p.x=random(0.0,1.0)*2.0-1.0;
+    p.y=random(0.0,1.0)*2.0-1.0;
+    p.z=random(0.0,1.0)*2.0-1.0;
+    while ((Mathutils.dotProduct(p,p)>1.0)||(Mathutils.dotProduct(p,IntersectPtNormal)<0)) {
+      p.x=random(0.0,1.0)*2.0-1.0;
+      p.y=random(0.0,1.0)*2.0-1.0;
+      p.z=random(0.0,1.0)*2.0-1.0;
+    }
+    p.normalize();
+    return p;
+  }
+  
+ PVector TextureRender(PVector Center, PVector intersectPoint, PVector RayDir, CollisionHelper CH2){
+      if(rendertype==0){//bilinear
+        if(CH.type==2)//sphere
+             return  SphereTextureMapBilinear(CH.Center,CH.intersectPoint, RayDir,CH);
+            else if(CH.type==1)
+             return SquareTextureMapBilinear(CH.Center,CH.intersectPoint, RayDir,CH);
+             else
+             return  PlaneTextureMapBilinear(CH.Center,CH.intersectPoint, RayDir,CH,infinitetextureScale); 
+        
+      }else if(rendertype==1){
+        if(CH.type==2)//nn
+             return  SphereTextureMapNN(CH.Center,CH.intersectPoint, RayDir,CH);
+            else if(CH.type==1)
+             return SquareTextureMapNN(CH.Center,CH.intersectPoint, RayDir,CH);
+             else
+             return  PlaneTextureMapNN(CH.Center,CH.intersectPoint, RayDir,CH,infinitetextureScale); 
+        
+        
+      }
+      else{
+        if(CH.type==2)//normal
+             return  SphereTextureMap(CH.Center,CH.intersectPoint, RayDir,CH);
+            else if(CH.type==1)
+             return SquareTextureMap(CH.Center,CH.intersectPoint, RayDir,CH);
+             else
+             return  PlaneTextureMap(CH.Center,CH.intersectPoint, RayDir,CH,infinitetextureScale); 
+        
+      }
+  }
+  
+  
   
  
   
   //resources for optimiaztions http://tigrazone.narod.ru/raytrace2.htm
   boolean InfinitePlaneIntersection(rInfinitePlane inPlane, CollisionHelper CH2, PVector rPos, PVector rDir, int ignorePrimitiveID){
     //infinitePlane handling
-    if(ignorePrimitiveID == inPlane.id)
-      return false;
+    if(ignorePrimitiveID == inPlane.id){
+       return false;
+    }
+     
       
     PVector NAx = Mathutils.normalizeVect(inPlane.NAxis);
     //Ray plane intersection is fairly easy, solve for t=-(rPos dot N + offsetfromorigin)/(rDir dot N), if t <0.0 no intersect, else yes return true and update
-    float rayMaxFram = 9999;
+    float rayMaxFram = MAXRENDERDISTANCE;
     if(CH2.collisionframe>0.0){
      rayMaxFram =CH2.collisionframe;
     }
     float t = -((Mathutils.dotProduct(rPos,NAx)+inPlane.distfromOrigin)/(Mathutils.dotProduct(rDir,NAx)));
-    if(t<=0.0 || t>=rayMaxFram)
+    if(t<0.0 || t>=rayMaxFram)
       return false;//no plane intersection
     
-      
+     
      PVector intersePT = Mathutils.addVect(rPos,Mathutils.scalarMult(rDir,t));
      //CH.inside =(t==0.0);//parallel again?
      
@@ -388,10 +528,10 @@ class Renderer{
       //update and return
      CH.foundhit = true;
      CH.id = inPlane.id;
-     CH.Size = new PVector(999,999,999);//negative size to indicate infinity
+     CH.Size = new PVector(99,99,99);//negative size to indicate infinity
      CH.Center = NAx;//no center as infinity
      CH.type = 3;
-    
+     
      
      if(inPlane.MatType.hasbumpmap){
        CH.surfaceNormal = computeIPlaneBumpMap(inPlane,CH);
@@ -415,7 +555,7 @@ class Renderer{
         uaxis = new PVector(1.0,0.0,0.0);
         vaxis = new PVector(0.0,0.0,1.0);    
       }
-   
+  
     Mat3 BumpMapSpace = new Mat3(uaxis,vaxis, CH2.surfaceNormal);//matrix for finite difference calculation ie. barycentrix coords
     
 
@@ -465,7 +605,7 @@ class Renderer{
       return false;//this is not the box we are looking for....
       
     float rayMinframe = 0.0;
-    float rayMaxframe = 999999;//max distances
+    float rayMaxframe = MAXRENDERDISTANCE;//max distances
     if(CH2.collisionframe>=0.0){
        rayMaxframe = CH2.collisionframe; 
     }
@@ -533,7 +673,7 @@ class Renderer{
       CH.HitObjectMaterial = inBox.MatType;
       CH.intersectPoint = Mathutils.addVect(rPos,Mathutils.scalarMult(rDir,CH.collisionframe));
       
-      float closestDisttobox = 99999;
+      float closestDisttobox = MAXRENDERDISTANCE;
       //again need to find what axis we working with (find closest distance) & then get its normal
       float interesectPointAxis = 0.0;
       for(int laxis = 0;laxis<3;++laxis){
@@ -642,7 +782,7 @@ class Renderer{
     float B = getTexAAboxVal(CH2.Center,CH2.intersectPoint,CH2,1.5,0);
     float C = getTexAAboxVal(CH2.Center,CH2.intersectPoint,CH2,0,1.5);
     //got offset values now get new normal via finite difference
-    PVector nNorm = Mathutils.normalizeVect(new PVector(A-B,A-C,0.15));
+    PVector nNorm = Mathutils.normalizeVect(new PVector(A-B,A-C,0.001));
     return Mathutils.normalizeVect(Mathutils.MatrixVectorProduct(BumpMapSpace,nNorm));//altered normal
   }
   
@@ -747,7 +887,7 @@ class Renderer{
     float B = getTexValSphere(texCoordX+texCoordOffset,texCoordY,CH2);
     float C = getTexValSphere(texCoordX,texCoordY+texCoordOffset,CH2);   
     //got offset values now get new normal via finite difference
-    PVector nNorm = Mathutils.normalizeVect(new PVector(B-A,C-A,0.25));
+    PVector nNorm = Mathutils.normalizeVect(new PVector(B-A,C-A,0.15));
     return Mathutils.normalizeVect(Mathutils.MatrixVectorProduct(BumpMapSpace,nNorm));//altered normal
   }
   
@@ -820,6 +960,289 @@ class Renderer{
   }
   
   
+  //returns the distance to the closest interesect
+  float SceneIntersectBlindDistance(PVector startPos, PVector targetPos, int ignorePrimID){
+    //used for shadows 
+    CHTemp = new CollisionHelper(CH);//create a copy
+    CH = new CollisionHelper();//clear old
+    PVector rayDir = Mathutils.subVect(targetPos,startPos);
+    CH.collisionframe = -1;
+    rayDir = Mathutils.normalizeVect(rayDir);
+    //run interesection against everything that isnt a lightsource and then return true on first hit
+    //spheres
+    float distance =MAXRENDERDISTANCE;
+    
+     
+    
+    for(rSphere rS : SceneH.Spheres){
+        if(rS.lightSource==false&&ignorePrimID!=rS.id){
+          
+         if(SphereIntersection(rS, CH, startPos, rayDir, ignorePrimID)){
+           //we have a hit! return false but restore collision var
+           if(CH.collisionframe<distance){
+             distance = CH.collisionframe;
+           }
+         }
+        }
+    }
+   CH = new CollisionHelper();//clear old
+     rayDir = Mathutils.subVect(targetPos,startPos);
+    CH.collisionframe = -1;
+    rayDir = Mathutils.normalizeVect(rayDir);
+    //run interesection against everything that isnt a lightsource and then return true on first hit
+    //spheres
+    //boxes
+    //spheres
+    for(rAABox rB : SceneH.AABoxes){
+        if(rB.lightSource==false&&ignorePrimID!=rB.id){
+         if(AABoxintersection(rB, CH, startPos, rayDir, ignorePrimID)){
+           if(CH.collisionframe<distance){
+             distance = CH.collisionframe;
+           }
+         }
+        }
+    }//end for
+     CH = new CollisionHelper();//clear old
+     rayDir = Mathutils.subVect(targetPos,startPos);
+    CH.collisionframe = -1;
+    rayDir = Mathutils.normalizeVect(rayDir);
+    //run interesection against everything that isnt a lightsource and then return true on first hit
+    //spheres
+    //planes
+    for(rInfinitePlane rIP : SceneH.InfinitePlanes){
+         //not concerned if it is a light or not
+           if(ignorePrimID!=rIP.id)
+           if(InfinitePlaneIntersection(rIP, CH, startPos, rayDir,ignorePrimID )){
+             if(CH.collisionframe<distance){
+             distance = CH.collisionframe;
+             }
+           }
+           }
+    
+   
+    CH = new CollisionHelper(CHTemp);
+    return distance;//thePoint can see the other point!!!!
+  }
+  
+  /////////////////////http://ruh.li/GraphicsLightReflection.html
+   ///////////////////////////////////////////////COOK TORRENCE////////////////////////////////////////////////////////////////
+  float[] SpecularCookTorrencePointLight(float[] rettie, CollisionHelper CH2, rPointLight pLights, float refleamnt, PVector rDir){
+    //MAterial Vars
+    //New
+    
+    float roughness = CH.HitObjectMaterial.roughnessval;//0-1, 0 smooth, 1 = rough
+    float FresReflect = CH.HitObjectMaterial.fresreflect;//fresnel reflectance at normal incidence
+    float k = CH.HitObjectMaterial.k;//fraction of diffuse reflection
+    float gaussConts = CH.HitObjectMaterial.specularE;
+    PVector Normal = Mathutils.normalizeVect(CH2.surfaceNormal);
+    PVector View = Mathutils.normalizeVect(Mathutils.scalarMult(rDir,-1));
+    PVector light = Mathutils.normalizeVect(pLights.lightPosition);
+    
+    //compnenets of the equation
+    float ndotv = max(Mathutils.dotProduct(Normal,View),0.01);
+    PVector halfVect = Mathutils.normalizeVect(Mathutils.addVect(View,light) );
+    float ndoth = max(Mathutils.dotProduct(Normal,halfVect),0.001);
+    float ndotl = max(Mathutils.dotProduct(Normal,light),0.001);
+    float vdoth = max(Mathutils.dotProduct(View,halfVect),0.001);
+    
+    //fresnesll
+    float refl_r, refr_r;
+    float frac = pow(1.0-Mathutils.dotProduct(View,halfVect),5.0);
+    refl_r = ((FresReflect-1.0)*(FresReflect-1.0) + 4.0*FresReflect*frac + k*k) / ((FresReflect+1.0)*(FresReflect+1.0) + k*k);
+    refr_r =1.0 - refl_r;
+ 
+    // microfacet distribution
+    float alpha = acos(ndoth);
+    float d = gaussConts * exp(-(alpha*alpha) / (roughness*roughness));
+
+    // geometric attenuation factor
+    float g = min(1.0, min(2.0*ndoth*ndotv/vdoth, 2.0*ndoth*ndotl/vdoth));
+    float bdrfspec = (refl_r*d*g)/(PI*ndotv*ndotl);
+    PVector brdf_spec = new PVector(bdrfspec,bdrfspec,bdrfspec);
+  
+    PVector fdiff = Mathutils.addVect(new PVector(refr_r,refr_r,refr_r),Mathutils.scalarMult(new PVector(1.0 - refr_r,1.0 - refr_r,1.0 - refr_r),pow(1.0 - ndotl, 5.0)));
+
+    PVector brdf_diff = Mathutils.componentMult(new PVector(1.0,1.0,1.0),new PVector(1.0-fdiff.x/(2.0*PI),1.0-fdiff.y/(2.0*PI),1.0-fdiff.z/(2.0*PI)));
+    PVector SummatBRDF = Mathutils.addVect(brdf_spec,brdf_diff);
+    PVector LightColndotl = Mathutils.scalarMult(CH2.HitObjectMaterial.specularCol,ndotl/256);
+    rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.componentMult(SummatBRDF,LightColndotl)));
+    return new float[]{rettie[0],rettie[1],rettie[2]};
+
+}
+
+  
+  float[] SpecularCookTorrencePoi2ntLight2(float[] rettie, CollisionHelper CH2, rPointLight pLights, float refleamnt, PVector rDir){
+    //MAterial Vars
+    //New
+    
+    float roughness = CH.HitObjectMaterial.roughnessval;//0-1, 0 smooth, 1 = rough
+    float FresReflect = CH.HitObjectMaterial.fresreflect;//fresnel reflectance at normal incidence
+    float k = CH.HitObjectMaterial.k;//fraction of diffuse reflection
+    PVector Normal = Mathutils.normalizeVect(CH2.surfaceNormal);
+    
+    PVector hitLightDir = Mathutils.normalizeVect(Mathutils.subVect(pLights.lightPosition,CH2.intersectPoint));
+    
+    //PVector reflection = reflect(hitlight, CH2.surfaceNormal);
+    //PVector hitLightDir = Mathutils.normalizeVect(reflection);
+   
+    float NdotL = max(Mathutils.dotProduct(Normal,hitLightDir),0);
+    float spec = 0.0;
+    //println(NdotL);
+    if(NdotL>0.0){
+      //intermediatry calcs
+      PVector eyeDir = Mathutils.normalizeVect(Mathutils.scalarMult(rDir,-1));
+      PVector hVector = Mathutils.normalizeVect(Mathutils.addVect(hitLightDir,eyeDir));
+      float NdotH = max(Mathutils.dotProduct(Normal,hVector),0);
+      float NdotV = max(Mathutils.dotProduct(Normal,eyeDir),0);
+      float VdotH = max(Mathutils.dotProduct(eyeDir,hVector),0);
+      float mSquared = roughness*roughness;
+      //Geometrix attentuations
+      float NH2 = 2.0*NdotH;
+      float G1 = (NH2*NdotV)/VdotH;
+      float G2 = (NH2*NdotL)/VdotH;
+      float GAttenuation = min(1.0,min(G1,G2));
+     
+      //Microfacet distribution
+      float R1 = 1.0/(4.0*mSquared*pow(NdotH,0.01));
+      float R2 = (NdotH*NdotH-1.0)/(mSquared*NdotH*NdotH);
+      float finalRoughness = R1*exp(R2);
+      
+      //Fresnel
+      //Shlicks approx
+      float fressy = pow(1.0-VdotH,5.0);
+      
+      fressy*=(1.0-FresReflect);
+      fressy+=FresReflect;
+      spec = (fressy*GAttenuation*finalRoughness)/(NdotV*NdotL*3.1415);
+      
+    }
+     rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.scalarMult(CH2.HitObjectMaterial.specularCol,NdotL*(spec))));
+    return rettie;
+    
+    
+  }
+  
+  
+  
+  float[] SpecularCookTorrenceDirectionalLight(float[] rettie, CollisionHelper CH2, rDirectionalLight rLights, float refleamnt, PVector rDir){
+    //MAterial Vars
+    //New
+    
+    float roughness = CH.HitObjectMaterial.roughnessval;//0-1, 0 smooth, 1 = rough
+    float FresReflect = CH.HitObjectMaterial.fresreflect;//fresnel reflectance at normal incidence
+    float k = CH.HitObjectMaterial.k;//fraction of diffuse reflection
+    float gaussConts = CH.HitObjectMaterial.specularE;
+    PVector Normal = Mathutils.normalizeVect(CH2.surfaceNormal);
+    PVector View = Mathutils.normalizeVect(Mathutils.scalarMult(rDir,-1));
+    PVector light = Mathutils.normalizeVect(rLights.lightDirectionreverse);
+    
+    //compnenets of the equation
+    float ndotv = max(Mathutils.dotProduct(Normal,View),0.01);
+    PVector halfVect = Mathutils.normalizeVect(Mathutils.addVect(View,light) );
+    float ndoth = max(Mathutils.dotProduct(Normal,halfVect),0.001);
+    float ndotl = max(Mathutils.dotProduct(Normal,light),0.001);
+    float vdoth =  max(Mathutils.dotProduct(View,halfVect),0.001);
+    
+    //fresnesll
+    float refl_r, refr_r;
+    float frac = pow(1.0-Mathutils.dotProduct(View,halfVect),5.0);
+    refl_r = ((FresReflect-1.0)*(FresReflect-1.0) + 4.0*FresReflect*frac + k*k) / ((FresReflect+1.0)*(FresReflect+1.0) + k*k);
+    refr_r =1.0 - refl_r;
+   
+    // microfacet distribution
+    float alpha = acos(ndoth);
+    float d = gaussConts * exp(-(alpha*alpha) / (roughness*roughness));
+
+    // geometric attenuation factor
+    float g = min(1.0, min(2.0*ndoth*ndotv/vdoth, 2.0*ndoth*ndotl/vdoth));
+    float bdrfspec = (refl_r*d*g)/(PI*ndotv*ndotl);
+    PVector brdf_spec = new PVector(bdrfspec,bdrfspec,bdrfspec);
+  
+    PVector fdiff = Mathutils.addVect(new PVector(refr_r,refr_r,refr_r),Mathutils.scalarMult(new PVector(1.0 - refr_r,1.0 - refr_r,1.0 - refr_r),pow(1.0 - ndotl, 5.0)));
+
+    PVector brdf_diff = Mathutils.componentMult(new PVector(1.0,1.0,1.0),new PVector(1.0-fdiff.x/(2.0*PI),1.0-fdiff.y/(2.0*PI),1.0-fdiff.z/(2.0*PI)));
+    PVector SummatBRDF = Mathutils.addVect(brdf_spec,brdf_diff);
+    PVector LightColndotl = Mathutils.scalarMult(CH2.HitObjectMaterial.specularCol,ndotl/256);
+    rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.componentMult(SummatBRDF,LightColndotl)));
+    
+    return new float[]{rettie[0],rettie[1],rettie[2]};
+
+ 
+   
+    
+    
+  }
+  
+  float[] SpecularCookTorrenceDirectionalLight2(float[] rettie, CollisionHelper CH2, rDirectionalLight rLights, float refleamnt, PVector rDir){
+    
+    float roughness = CH.HitObjectMaterial.roughnessval;//0-1, 0 smooth, 1 = rough
+    float FresReflect = CH.HitObjectMaterial.fresreflect;//fresnel reflectance at normal incidence
+    float k = CH.HitObjectMaterial.k;//fraction of diffuse reflection
+    PVector hitLight = Mathutils.normalizeVect(Mathutils.subVect(rLights.lightDirectionreverse,CH2.intersectPoint));
+    PVector reflection = reflect(hitLight, CH2.surfaceNormal);
+    float dp = (Mathutils.dotProduct(rDir,reflection));
+    float spec = 0.0;
+    if(dp>0.0){
+      //intermediatry calcs
+        PVector hVector = Mathutils.normalizeVect(Mathutils.addVect(hitLight,rDir) );
+        float NdotH = (Mathutils.dotProduct(CH2.surfaceNormal,hVector));
+        float NdotV = (Mathutils.dotProduct(CH2.surfaceNormal,rDir));
+        float VdotH =(Mathutils.dotProduct(rDir,hVector));
+        float mSquared = roughness*roughness;
+      //Geometrix attentuations
+      float NH2 = 2.0*NdotH;
+      float G1 = (NH2*NdotV)/VdotH;
+      float G2 = (NH2*dp)/VdotH;
+      float GAttenuation = min(1.0,min(G1,G2));
+      
+      //Microfacet distribution
+      float R1 = 1.0/(4.0*mSquared*pow(NdotH,4.0));
+      float R2 = (NdotH*NdotH-1.0)/(mSquared*NdotH*NdotH);
+      float finalRoughness = R1*exp(R2);
+      
+      //Fresnel
+      //Shlicks approx
+      float fressy = pow(1.0-VdotH,5.0);
+      fressy*=(1.0-FresReflect);
+      fressy+=FresReflect;
+      spec = (fressy*GAttenuation*finalRoughness)/(NdotV*dp*3.1415);
+        
+   
+   
+      
+    }
+    rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.scalarMult(CH2.HitObjectMaterial.specularCol,dp*(k+spec*(1.0-k)))));
+    return rettie;
+ 
+   
+    
+    
+  }
+  ///////////////////////////////////////////////PHONG//////////////////////////////////////////////////////////////////////////
+  float [] SpecularPhongPointLight(PVector hitlight, CollisionHelper CH2,PVector rDir,rPointLight pLights,float refleamnt,float[] rettie ){
+      PVector reflection = reflect(hitlight, CH2.surfaceNormal);
+      float dp = Mathutils.dotProduct(rDir,reflection);
+      if(dp>0.0){
+        float specPow = pow(dp, CH2.HitObjectMaterial.specularE);
+        PVector specVec = Mathutils.scalarMult(CH2.HitObjectMaterial.specularCol,specPow);
+        PVector lColrefl = Mathutils.scalarMult(pLights.lightCol,refleamnt);
+        rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.componentMult(specVec,lColrefl)));
+      }
+      return rettie;
+  }
+  
+  float [] SpecularPhongDirectionalLight(PVector hitlight, CollisionHelper CH2,PVector rDir,rDirectionalLight rLights,float refleamnt,float[] rettie ){
+      PVector reflection = reflect(rLights.lightDirectionreverse, CH2.surfaceNormal);
+      float dp = Mathutils.dotProduct(rDir,reflection);
+      
+      if(dp>0.0){
+        float specPow = pow(dp, CH2.HitObjectMaterial.specularE);
+        PVector specVec = Mathutils.scalarMult(CH2.HitObjectMaterial.specularCol,specPow);
+        PVector lColrefl = Mathutils.scalarMult(rLights.lightCol,refleamnt);
+        rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.componentMult(specVec,lColrefl)));
+      }
+      return rettie;
+  }
   
   float[] ApplyPointLight(float[] PixelCol, CollisionHelper CH2, rPointLight pLights, float refleamnt, PVector rDir){//applys lighint model to the pixelcolor float and returns the new one
     float[] rettie = PixelCol;
@@ -830,16 +1253,18 @@ class Renderer{
       if(dp>0.0){
              rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.componentMult(Mathutils.scalarMult(CH2.HitObjectMaterial.diffuseCol,(dp)),Mathutils.scalarMult(pLights.lightCol,CH2.HitObjectMaterial.diffuseD*refleamnt))));
       }
-        
-      //specular
-      PVector reflection = reflect(hitLight, CH2.surfaceNormal);
-      dp = Mathutils.dotProduct(rDir,reflection);
-      if(dp>0.0){
-        float specPow = pow(dp, CH2.HitObjectMaterial.specularE);
-        PVector specVec = Mathutils.scalarMult(CH2.HitObjectMaterial.specularCol,specPow);
-        PVector lColrefl = Mathutils.scalarMult(pLights.lightCol,refleamnt);
-        rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.componentMult(specVec,lColrefl)));
+      
+        if(CH2.HitObjectMaterial.specularE<0){//SPEC FIX
+          return rettie;
+        }else if(CH2.HitObjectMaterial.isct){//apply cook torrence
+         rettie = SpecularCookTorrencePointLight(rettie,CH2, pLights,refleamnt,rDir);
+      }else{//apply phong
+         rettie = SpecularPhongPointLight(hitLight,CH2,rDir,pLights,refleamnt,rettie); 
       }
+      
+      
+       //float d = map(CH2.collisionframe,0.0,(MAXRENDERDISTANCE+0.0),1.0,0.0);
+        //rettie = new float[]{rettie[0]*(d),rettie[1]*(d),rettie[2]*(d)};
       
       
     }
@@ -858,18 +1283,20 @@ class Renderer{
         rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.componentMult(diffuseMul,lightDif)));
       }
         
-      //specular
-      PVector reflection = reflect(rLights.lightDirectionreverse, CH2.surfaceNormal);
-      dp = Mathutils.dotProduct(rDir,reflection);
-      if(dp>0.0){
-        float specPow = pow(dp, CH2.HitObjectMaterial.specularE);
-        PVector specVec = Mathutils.scalarMult(CH2.HitObjectMaterial.specularCol,specPow);
-        PVector lColrefl = Mathutils.scalarMult(rLights.lightCol,refleamnt);
-        rettie = Mathutils.addFloat(rettie,Mathutils.toFloat(Mathutils.componentMult(specVec,lColrefl)));
-      }
+        //------------------------
+        //Check for no specular -1 denotes no spec
+        if(CH2.HitObjectMaterial.specularE<0){//SPEC FIX
+          return rettie;
+        }else if(CH2.HitObjectMaterial.isct){//apply cook torrence
+         rettie = SpecularCookTorrenceDirectionalLight(rettie ,CH2, rLights,refleamnt,rDir);
+        }else{//apply phong
+         rettie = SpecularPhongDirectionalLight(rLights.lightDirectionreverse,CH2,rDir,rLights,refleamnt,rettie); 
+        }      
+     
     }
     return rettie;
   }
+
   
   PVector reflect(PVector I, PVector Nn){//Reflect a vector given incident ray and normal
   //given as I - 2.0*dot(N,I)*N;
@@ -894,7 +1321,7 @@ class Renderer{
     }
     
   }
-  
+ /////////////////////////////////////////////////////////////////////////TEXTURE MAPPING//////////////////////////////////////////////////////////////////// 
   PVector SphereTextureMap(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2){//returns a color for sphere
         PVector Normals = Mathutils.normalizeVect(Mathutils.subVect(intersectPoint,Center));
        
@@ -914,22 +1341,6 @@ class Renderer{
   
   
   //http://www.flipcode.com/archives/Raytracing_Topics_Techniques-Part_6_Textures_Cameras_and_Speed.shtml
-  PVector SphereTextureMapBilinear(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2){//returns a color for sphere
-        PVector Normals = Mathutils.normalizeVect(Mathutils.subVect(intersectPoint,Center));
-       
-        float u = 0.5 +atan2(Normals.z,Normals.x)/(2*PI);
-        float v = 0.5 -asin(Normals.y)/(PI);
-       
-        int pWidth = (int)(u*CH2.HitObjectMaterial.Tex.width);
-        int pHeight = (int)(v*CH2.HitObjectMaterial.Tex.height);
-        
-        int pX = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);
-        int MaxVal = CH2.HitObjectMaterial.Tex.height*CH2.HitObjectMaterial.Tex.width;
-        pX = abs(pX%MaxVal);
-        color c = CH2.HitObjectMaterial.Tex.pixels[pX];
-        
-        return new PVector(red(c)/255,green(c)/255,blue(c)/255);
-  }
   
   PVector SquareTextureMap(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2){//returns a color for cube
         //gotta resize based off each axis
@@ -960,7 +1371,8 @@ class Renderer{
   }
   
   
-  PVector PlaneTextureMap(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2, int scalefactor){//returns a color for cube
+ 
+   PVector PlaneTextureMap(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2, int scalefactor){//returns a color for cube
         //gotta resize based off each axis
         float u = 0.0;
         float v = 0.0;
@@ -987,13 +1399,355 @@ class Renderer{
         return new PVector(red(c)/255,green(c)/255,blue(c)/255);
   }
   
-  
 
+  //------------------------------------------------------------------------Filtering
+  
+  //Nearest neighbour
+  //http://www.flipcode.com/archives/Raytracing_Topics_Techniques-Part_6_Textures_Cameras_and_Speed.shtml
+  PVector SphereTextureMapNN(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2){//returns a color for sphere
+        PVector Normals = Mathutils.normalizeVect(Mathutils.subVect(intersectPoint,Center));
+        float offset = 0.5;
+        
+        float u = 0.5 +atan2(Normals.z,Normals.x)/(2*PI);
+        float v = 0.5 -asin(Normals.y)/(PI);
+        
+        int MaxVal = CH2.HitObjectMaterial.Tex.height*CH2.HitObjectMaterial.Tex.width;
+        color c1,c2,c3,c4,c5;
+       
+        int pWidth = (int)(u*CH2.HitObjectMaterial.Tex.width);
+        int pHeight = (int)(v*CH2.HitObjectMaterial.Tex.height);
+        int pX1 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);//center
+        pX1 = abs(pX1%MaxVal);
+        c1 = CH2.HitObjectMaterial.Tex.pixels[pX1];
+        //left
+        pWidth = (int)(((u)*CH2.HitObjectMaterial.Tex.width)+offset);
+        pHeight = (int)(v*CH2.HitObjectMaterial.Tex.height);
+        int pX2 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);
+        pX2 = abs(pX2%MaxVal);
+        c2 = CH2.HitObjectMaterial.Tex.pixels[pX2];
+        //right
+        pWidth = (int)(((u)*CH2.HitObjectMaterial.Tex.width)+offset);
+        pHeight = (int)(v*CH2.HitObjectMaterial.Tex.height);
+        int pX3 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);//right
+        pX3 = abs(pX3%MaxVal);
+        c3= CH2.HitObjectMaterial.Tex.pixels[pX3];
+         //up
+        pWidth = (int)(u*CH2.HitObjectMaterial.Tex.width);
+        pHeight = (int)(((v)*CH2.HitObjectMaterial.Tex.height)+offset);
+        int pX4 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);//up
+        pX4 = abs(pX4%MaxVal);
+        c4 = CH2.HitObjectMaterial.Tex.pixels[pX4];
+        
+        pWidth = (int)(u*CH2.HitObjectMaterial.Tex.width);
+        pHeight = (int)(((v)*CH2.HitObjectMaterial.Tex.height)-offset);
+        int pX5 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);//down
+        pX5 = abs(pX5%MaxVal);
+        c5 = CH2.HitObjectMaterial.Tex.pixels[pX5];
+        
+        
+       PVector c1c =  new PVector(red(c1)/255,green(c1)/255,blue(c1)/255);
+       PVector c2c =  new PVector(red(c2)/255,green(c2)/255,blue(c2)/255);
+       PVector c3c =  new PVector(red(c3)/255,green(c3)/255,blue(c3)/255);
+       PVector c4c =  new PVector(red(c4)/255,green(c4)/255,blue(c4)/255);
+       PVector c5c =  new PVector(red(c5)/255,green(c5)/255,blue(c5)/255);
+       
+       PVector finalc = new PVector((c1c.x+c2c.x+c3c.x+c4c.x+c5c.x)/5,(c1c.y+c2c.y+c3c.y+c4c.y+c5c.y)/5,(c1c.z+c2c.z+c3c.z+c4c.z+c5c.z)/5);
+        
+        return  finalc;
+  }
+  
+   PVector PlaneTextureMapNN(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2, int scalefactor){//returns a color for cube
+        //gotta resize based off each axis
+        float u = 0.0;
+        float v = 0.0;
+        float offset = 0.5;
+        color c1,c2,c3,c4,c5;
+        
+        int MaxVal = CH2.HitObjectMaterial.Tex.height*CH2.HitObjectMaterial.Tex.width;
+        
+       if(CH2.axis==1){//XAxis
+            u = (intersectPoint.z*scalefactor)%(float)CH2.HitObjectMaterial.Tex.width;
+            v = (intersectPoint.y*scalefactor)%(float)CH2.HitObjectMaterial.Tex.height;
+          
+        }else if(CH2.axis==2){//yaxis
+           u = (intersectPoint.x*scalefactor)%(float)CH2.HitObjectMaterial.Tex.width;
+           v = (intersectPoint.z*scalefactor)%(float)CH2.HitObjectMaterial.Tex.height;
+        
+        }else{
+          u = (intersectPoint.x*scalefactor)%(float)CH2.HitObjectMaterial.Tex.width;
+          v = (intersectPoint.y*scalefactor)%(float)CH2.HitObjectMaterial.Tex.height;
+        }
+      
+        u = abs(u);
+        v = abs(v);
+        
+        int pX1 = (int)(u+offset) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        int pX2 = (int)(u-offset) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        int pX3 = (int)(u) + (((int)(v+offset))*CH2.HitObjectMaterial.Tex.width);
+        int pX4 = (int)(u) + (((int)(v-offset))*CH2.HitObjectMaterial.Tex.width);
+        int pX5 = (int)(u) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        
+        
+        pX1 = abs(pX1%MaxVal);
+        pX2 = abs(pX2%MaxVal);
+        pX3 = abs(pX3%MaxVal);
+        pX4 = abs(pX4%MaxVal);
+        pX5 = abs(pX5%MaxVal);
+        
+        c1 = CH2.HitObjectMaterial.Tex.pixels[pX1];
+        c2 = CH2.HitObjectMaterial.Tex.pixels[pX2];
+        c3 = CH2.HitObjectMaterial.Tex.pixels[pX3];
+        c4 = CH2.HitObjectMaterial.Tex.pixels[pX4];
+        c5 = CH2.HitObjectMaterial.Tex.pixels[pX5];
+        
+        
+       PVector c1c =  new PVector(red(c1)/255,green(c1)/255,blue(c1)/255);
+       PVector c2c =  new PVector(red(c2)/255,green(c2)/255,blue(c2)/255);
+       PVector c3c =  new PVector(red(c3)/255,green(c3)/255,blue(c3)/255);
+       PVector c4c =  new PVector(red(c4)/255,green(c4)/255,blue(c4)/255);
+       PVector c5c =  new PVector(red(c5)/255,green(c5)/255,blue(c5)/255);
+       PVector finalc = new PVector((c1c.x+c2c.x+c3c.x+c4c.x+c5c.x)/5,(c1c.y+c2c.y+c3c.y+c4c.y+c5c.y)/5,(c1c.z+c2c.z+c3c.z+c4c.z+c5c.z)/5);
+       
+       return finalc;
+  }
+  
+  PVector SquareTextureMapNN(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2){//returns a color for cube
+        //gotta resize based off each axis
+        float u = 0.0;
+        float v = 0.0;
+        float offset = 0.5;
+        color c1,c2,c3,c4,c5;
+        int MaxVal = CH2.HitObjectMaterial.Tex.height*CH2.HitObjectMaterial.Tex.width;
+        
+        if(CH2.axis==1){//XAxis
+            u = map(intersectPoint.z,Center.z-CH2.Size.z/2,Center.z+CH2.Size.z/2,0.0,(float)CH2.HitObjectMaterial.Tex.width);
+            v = map(intersectPoint.y,Center.y-CH2.Size.y/2,Center.y+CH2.Size.y/2,0.0,(float)CH2.HitObjectMaterial.Tex.height);
+          
+        }else if(CH2.axis==2){//yaxis
+           u = map(intersectPoint.x,Center.x-CH2.Size.x/2,Center.x+CH2.Size.x/2,0.0,(float)CH2.HitObjectMaterial.Tex.width);
+           v = map(intersectPoint.z,Center.z-CH2.Size.z/2,Center.z+CH2.Size.z/2,0.0,(float)CH2.HitObjectMaterial.Tex.height);
+        
+        }else{
+          u = map(intersectPoint.x,Center.x-CH2.Size.x/2,Center.x+CH2.Size.x/2,0.0,(float)CH2.HitObjectMaterial.Tex.width);
+          v = map(intersectPoint.y,Center.y-CH2.Size.y/2,Center.y+CH2.Size.y/2,0.0,(float)CH2.HitObjectMaterial.Tex.height);
+        }
+       
+        int pX1 = (int)(u+offset) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        int pX2 = (int)(u-offset) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        int pX3 = (int)(u) + (((int)(v+offset))*CH2.HitObjectMaterial.Tex.width);
+        int pX4 = (int)(u) + (((int)(v-offset))*CH2.HitObjectMaterial.Tex.width);
+        int pX5 = (int)(u) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        
+        
+        pX1 = abs(pX1%MaxVal);
+        pX2 = abs(pX2%MaxVal);
+        pX3 = abs(pX3%MaxVal);
+        pX4 = abs(pX4%MaxVal);
+        pX5 = abs(pX5%MaxVal);
+        
+        c1 = CH2.HitObjectMaterial.Tex.pixels[pX1];
+        c2 = CH2.HitObjectMaterial.Tex.pixels[pX2];
+        c3 = CH2.HitObjectMaterial.Tex.pixels[pX3];
+        c4 = CH2.HitObjectMaterial.Tex.pixels[pX4];
+        c5 = CH2.HitObjectMaterial.Tex.pixels[pX5];
+        
+        
+       PVector c1c =  new PVector(red(c1)/255,green(c1)/255,blue(c1)/255);
+       PVector c2c =  new PVector(red(c2)/255,green(c2)/255,blue(c2)/255);
+       PVector c3c =  new PVector(red(c3)/255,green(c3)/255,blue(c3)/255);
+       PVector c4c =  new PVector(red(c4)/255,green(c4)/255,blue(c4)/255);
+       PVector c5c =  new PVector(red(c5)/255,green(c5)/255,blue(c5)/255);
+       PVector finalc = new PVector((c1c.x+c2c.x+c3c.x+c4c.x+c5c.x)/5,(c1c.y+c2c.y+c3c.y+c4c.y+c5c.y)/5,(c1c.z+c2c.z+c3c.z+c4c.z+c5c.z)/5);
+       
+       return finalc;
+        
+  }
   
   
   
+  ///////////BILINEAR------------------------------------------------------------------------------------------------------------------------------------------
+   PVector PlaneTextureMapBilinear(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2, int scalefactor){//returns a color for cube
+        //gotta resize based off each axis
+        float u = 0.0;
+        float v = 0.0;
+      
+        color c1,c2,c3,c4;
+        
+        int MaxVal = CH2.HitObjectMaterial.Tex.height*CH2.HitObjectMaterial.Tex.width;
+        
+       if(CH2.axis==1){//XAxis
+            u = (intersectPoint.z*scalefactor)%(float)CH2.HitObjectMaterial.Tex.width;
+            v = (intersectPoint.y*scalefactor)%(float)CH2.HitObjectMaterial.Tex.height;
+          
+        }else if(CH2.axis==2){//yaxis
+           u = (intersectPoint.x*scalefactor)%(float)CH2.HitObjectMaterial.Tex.width;
+           v = (intersectPoint.z*scalefactor)%(float)CH2.HitObjectMaterial.Tex.height;
+        
+        }else{
+          u = (intersectPoint.x*scalefactor)%(float)CH2.HitObjectMaterial.Tex.width;
+          v = (intersectPoint.y*scalefactor)%(float)CH2.HitObjectMaterial.Tex.height;
+        }
+      
+        u = abs(u);
+        v = abs(v);
+        
+        float u_ratio = u-floor(u);
+        float v_ratio = v-floor(v);
+        float u_Op = 1-u_ratio;
+        float v_Op = 1-v_ratio;
+        
+        
+        int pX1 = (int)(u) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);//center
+        int pX2 = (int)(u+TEXFILTEROFFSET) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        int pX3 = (int)(u) + (((int)(v+TEXFILTEROFFSET))*CH2.HitObjectMaterial.Tex.width);
+        int pX4 = (int)(u+TEXFILTEROFFSET) + (((int)(v+TEXFILTEROFFSET))*CH2.HitObjectMaterial.Tex.width);
+        
+        
+        pX1 = abs(pX1%MaxVal);
+        pX2 = abs(pX2%MaxVal);
+        pX3 = abs(pX3%MaxVal);
+        pX4 = abs(pX4%MaxVal);
+
+        
+        c1 = CH2.HitObjectMaterial.Tex.pixels[pX1];
+        c2 = CH2.HitObjectMaterial.Tex.pixels[pX2];
+        c3 = CH2.HitObjectMaterial.Tex.pixels[pX3];
+        c4 = CH2.HitObjectMaterial.Tex.pixels[pX4];
+
+        
+        
+       PVector c1c =  new PVector(red(c1)/255,green(c1)/255,blue(c1)/255);
+       PVector c2c =  new PVector(red(c2)/255,green(c2)/255,blue(c2)/255);
+       PVector c3c =  new PVector(red(c3)/255,green(c3)/255,blue(c3)/255);
+       PVector c4c =  new PVector(red(c4)/255,green(c4)/255,blue(c4)/255);
+       
+       float redBL = (((c1c.x*u_Op)+(c2c.x*u_ratio)*v_Op)) +(((c3c.x*u_Op)+(c4c.x*u_ratio))*v_ratio);
+       float greenBL = (((c1c.y*u_Op)+(c2c.y*u_ratio)*v_Op)) +(((c3c.y*u_Op)+(c4c.y*u_ratio))*v_ratio);
+       float blueBL = (((c1c.z*u_Op)+(c2c.z*u_ratio)*v_Op)) +(((c3c.z*u_Op)+(c4c.z*u_ratio))*v_ratio);
+       
+
+       PVector finalc = new PVector(redBL,greenBL,blueBL);
+       
+       return finalc;
+  }
   
+  PVector SquareTextureMapBilinear(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2){//returns a color for cube
+        //gotta resize based off each axis
+        float u = 0.0;
+        float v = 0.0;
+     
+        color c1,c2,c3,c4;
+        int MaxVal = CH2.HitObjectMaterial.Tex.height*CH2.HitObjectMaterial.Tex.width;
+        
+        if(CH2.axis==1){//XAxis
+            u = map(intersectPoint.z,Center.z-CH2.Size.z/2,Center.z+CH2.Size.z/2,0.0,(float)CH2.HitObjectMaterial.Tex.width);
+            v = map(intersectPoint.y,Center.y-CH2.Size.y/2,Center.y+CH2.Size.y/2,0.0,(float)CH2.HitObjectMaterial.Tex.height);
+          
+        }else if(CH2.axis==2){//yaxis
+           u = map(intersectPoint.x,Center.x-CH2.Size.x/2,Center.x+CH2.Size.x/2,0.0,(float)CH2.HitObjectMaterial.Tex.width);
+           v = map(intersectPoint.z,Center.z-CH2.Size.z/2,Center.z+CH2.Size.z/2,0.0,(float)CH2.HitObjectMaterial.Tex.height);
+        
+        }else{
+          u = map(intersectPoint.x,Center.x-CH2.Size.x/2,Center.x+CH2.Size.x/2,0.0,(float)CH2.HitObjectMaterial.Tex.width);
+          v = map(intersectPoint.y,Center.y-CH2.Size.y/2,Center.y+CH2.Size.y/2,0.0,(float)CH2.HitObjectMaterial.Tex.height);
+        }
+       
+        float u_ratio = u-floor(u);
+        float v_ratio = v-floor(v);
+        float u_Op = 1-u_ratio;
+        float v_Op = 1-v_ratio;
+        
+        int pX1 = (int)(u) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        int pX2 = (int)(u+TEXFILTEROFFSET) + (((int)(v))*CH2.HitObjectMaterial.Tex.width);
+        int pX3 = (int)(u) + (((int)(v+TEXFILTEROFFSET))*CH2.HitObjectMaterial.Tex.width);
+        int pX4 = (int)(u+TEXFILTEROFFSET) + (((int)(v+TEXFILTEROFFSET))*CH2.HitObjectMaterial.Tex.width);
+       
+        
+        
+        pX1 = abs(pX1%MaxVal);
+        pX2 = abs(pX2%MaxVal);
+        pX3 = abs(pX3%MaxVal);
+        pX4 = abs(pX4%MaxVal);
+       
+        
+        c1 = CH2.HitObjectMaterial.Tex.pixels[pX1];
+        c2 = CH2.HitObjectMaterial.Tex.pixels[pX2];
+        c3 = CH2.HitObjectMaterial.Tex.pixels[pX3];
+        c4 = CH2.HitObjectMaterial.Tex.pixels[pX4];
+       
+        
+        
+       PVector c1c =  new PVector(red(c1)/255,green(c1)/255,blue(c1)/255);
+       PVector c2c =  new PVector(red(c2)/255,green(c2)/255,blue(c2)/255);
+       PVector c3c =  new PVector(red(c3)/255,green(c3)/255,blue(c3)/255);
+       PVector c4c =  new PVector(red(c4)/255,green(c4)/255,blue(c4)/255);
+
+       float redBL = (((c1c.x*u_Op)+(c2c.x*u_ratio)*v_Op)) +(((c3c.x*u_Op)+(c4c.x*u_ratio))*v_ratio);
+       float greenBL = (((c1c.y*u_Op)+(c2c.y*u_ratio)*v_Op)) +(((c3c.y*u_Op)+(c4c.y*u_ratio))*v_ratio);
+       float blueBL = (((c1c.z*u_Op)+(c2c.z*u_ratio)*v_Op)) +(((c3c.z*u_Op)+(c4c.z*u_ratio))*v_ratio);
+       
+       PVector finalc = new PVector(redBL,greenBL,blueBL);
+       
+       return finalc;
+        
+  }
   
+ 
+  
+   PVector SphereTextureMapBilinear(PVector Center, PVector intersectPoint, PVector Ray, CollisionHelper CH2){//returns a color for sphere
+        PVector Normals = Mathutils.normalizeVect(Mathutils.subVect(intersectPoint,Center));
+        
+        float u = 0.5 +atan2(Normals.z,Normals.x)/(2*PI);
+        float v = 0.5 -asin(Normals.y)/(PI);
+        
+        int MaxVal = CH2.HitObjectMaterial.Tex.height*CH2.HitObjectMaterial.Tex.width;
+        color c1,c2,c3,c4;
+       
+        int pWidth = (int)(u*CH2.HitObjectMaterial.Tex.width);
+        int pHeight = (int)(v*CH2.HitObjectMaterial.Tex.height);
+        int pX1 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);//center
+        pX1 = abs(pX1%MaxVal);
+        c1 = CH2.HitObjectMaterial.Tex.pixels[pX1];
+        //left
+        pWidth = (int)(((u)*CH2.HitObjectMaterial.Tex.width)+TEXFILTEROFFSET);
+        pHeight = (int)(v*CH2.HitObjectMaterial.Tex.height);
+        int pX2 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);
+        pX2 = abs(pX2%MaxVal);
+        c2 = CH2.HitObjectMaterial.Tex.pixels[pX2];
+        //right
+        pWidth = (int)(((u)*CH2.HitObjectMaterial.Tex.width));
+        pHeight = (int)((((v)*CH2.HitObjectMaterial.Tex.height)+TEXFILTEROFFSET));
+        
+        int pX3 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);//right
+        pX3 = abs(pX3%MaxVal);
+        c3= CH2.HitObjectMaterial.Tex.pixels[pX3];
+         //up
+        pWidth = (int)(((u)*CH2.HitObjectMaterial.Tex.width)+TEXFILTEROFFSET);
+        pHeight = (int)((((v)*CH2.HitObjectMaterial.Tex.height)+TEXFILTEROFFSET));
+        int pX4 = pWidth + (pHeight*CH2.HitObjectMaterial.Tex.width);//up
+        pX4 = abs(pX4%MaxVal);
+        c4 = CH2.HitObjectMaterial.Tex.pixels[pX4];
+        
+        
+        float u_ratio = u-floor(u);
+        float v_ratio = v-floor(v);
+        float u_Op = 1-u_ratio;
+        float v_Op = 1-v_ratio;
+        
+        PVector c1c =  new PVector(red(c1)/255,green(c1)/255,blue(c1)/255);
+        PVector c2c =  new PVector(red(c2)/255,green(c2)/255,blue(c2)/255);
+        PVector c3c =  new PVector(red(c3)/255,green(c3)/255,blue(c3)/255);
+        PVector c4c =  new PVector(red(c4)/255,green(c4)/255,blue(c4)/255);
+  
+       float redBL = (((c1c.x*u_Op)+(c2c.x*u_ratio)*v_Op)) + (((c3c.x*u_Op)+(c4c.x*u_ratio))*v_ratio);
+       float greenBL = (((c1c.y*u_Op)+(c2c.y*u_ratio)*v_Op)) +(((c3c.y*u_Op)+(c4c.y*u_ratio))*v_ratio);
+       float blueBL = (((c1c.z*u_Op)+(c2c.z*u_ratio)*v_Op)) +(((c3c.z*u_Op)+(c4c.z*u_ratio))*v_ratio);
+         
+         PVector finalc = new PVector(redBL,greenBL,blueBL);
+         
+         return finalc;
+        
+  }
   
   
   
@@ -1119,5 +1873,60 @@ class Renderer{
     return true;//thePoint can see the other point!!!!
   }
   
+  
+  float[] componentMultFloat(float[] F1, float[] F2){////////////////////////////////////////BEER LAMBERT
+  
+    return new float[]{F1[0]*F2[0],F1[1]*F2[1],F1[2]*F2[2]};
+  }
+  
+ void LoadConfig(String File){//S D L 
+    
+     try{
+      BufferedReader br = new BufferedReader(new FileReader(File));//open file
+      String Line = br.readLine();
+      String Line2 = br.readLine();
+       
+       while(Line!=null && Line2!=null){
+        
+         if(Line.contains("TEXSCALE")){
+           infinitetextureScale = Integer.parseInt(Line2);
+           
+         }else if(Line.contains("RAYBOUNCEUPPER")){
+           raybouncemax = Integer.parseInt(Line2);
+           
+         }else if(Line.contains("TEXTFILTEROFFSET")){
+           TEXFILTEROFFSET = Float.parseFloat( Line2);
+           
+         }else if(Line.contains("POSTFXGAMMA")){
+           gamma = Float.parseFloat( Line2);
+           PFXGamma = true;
+           
+         }else if(Line.contains("POSTFXTONEMAP")){
+            String[] splitResult = Line2.split(",");
+            kexp = Float.parseFloat( splitResult[0]);
+            kpower = Integer.parseInt(splitResult[1]);
+            TMap = true;
+         }else if(Line.contains("TEXTURERENDER")){
+             rendertype =Integer.parseInt(Line2);
+         }else if(Line.contains("AO")){
+             AORAYS =Integer.parseInt(Line2);
+             AO = true;
+         }else{
+           
+         }
+         Line = br.readLine();
+        Line2 = br.readLine();
+       }
+        br.close();
+       
+     }catch(Exception e){
+       JOptionPane.showMessageDialog(null,""+e.toString(),"Exception",JOptionPane.INFORMATION_MESSAGE);
+       System.out.println("Exception:"+e.toString());
+     }
+     finally{
+     
+     }
+     
+ }
   
 }

@@ -1,0 +1,22 @@
+PLIGHT
+0.0,0.0,3.0,0.8,0.8,0.8
+PLIGHT
+0.0,0.0,1.0,1.0,1.0,1.0
+PLIGHT
+0.0,0.0,1.0,1.0,1.0,1.0
+PLIGHT
+0.0,0.0,1.0,1.0,1.0,1.0
+AMBIENCE  USAGE: COL(R,G,B)
+0.1,0.1,0.1
+IPLANE 
+1,0.0,1.0,0.0,2.0,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,$,$
+IPLANE  
+2,1.0,0.0,0.0,2.0,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,$,$
+IPLANE 
+3,-1.0,0.0,0.0,2.0,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,$,$
+SPHERE COOKTORRENCE USAGE:[-ID-Center(X,Y,Z)-Radius-Diffuse-DCol(R,G,B)-SpecPower(-1=none)-SpecCol(R,G,B)-emiisveCol(R,G,B)-Reflect-Refract-Rindex,DBEERCONST,CTRoughness,CTFresnelReflectance,CTK-TextureLocation-LIGHT-BumpLoc-NoiseText
+6,-0.5,-1.0,1.0,0.5,1.0,1.0,1.0,1.0,3000.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.1,0.5,0.3,1.5,0.5,FALSE
+SPHERE USAGE:[-ID-Center(X,Y,Z)-Radius-Diffuse-DCol(R,G,B)-SpecPower(-1=none)-SpecCol(R,G,B)-emiisveCol(R,G,B)-Reflect-Refract-Rindex,DBEERCONST,CTRoughness,CTFresnelReflectance,CTK-TextureLocation-LIGHT-BumpLoc-NoiseText
+7,0.5,-1.0,1.0,0.5,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.6,0.0,FALSE
+AABOX COOKTORRENCE
+10,0.0,-1.0,0.0,0.5,0.5,0.5,1.0,1.0,1.0,1.0,-1000.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,1.0,0.8,0.3,0.5,1.55,0.3,FALSE,$,$

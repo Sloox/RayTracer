@@ -18,13 +18,17 @@ boolean drawupdate = true;
 boolean mousedown = false;
 Renderer sRenderer;
 float sbrightness = 256;
-float rSSOffset = 0.35; //values between 0.2-0.4 produce good results
-float gamma = 1.00;
+float rSSOffset = 0.2; //values between 0.2-0.4 produce good results
+float gamma = 0.95;
 int inctiles = 0;
 int StochasticSamples = 256;
 PImage test,test2;
 
 ////////////WHATS LEFT
+//cook torrence -->http://ruh.li/GraphicsCookTorrance.html and raytracer book!!!
+
+
+
 //Environment mapping - cube vs sphere
 //Montecarlo -> check out links & Sphere + cone tracing
 //Transforms on objects i.e write quick few maths util functions for transformaing any object
@@ -53,12 +57,12 @@ void draw(){
  if(drawupdate && !mousedown){
    
    //renderParallel();
-   //Render_Scene_NOSSA(inctiles++);
-   Render_Scene_CombinationSSA(inctiles++);
-   //Render_Scene_Parts_RegularSSA9(inctiles++);
-  // Render_Scene_Parts_RegularSSA5(inctiles++);
-  // Render_Scene_StochasticSSA(inctiles++,StochasticSamples);
-   //Render_Adaptive_SSA_Tiles(inctiles);
+  // Render_Scene_NOSSA(inctiles++);
+   //Render_Scene_CombinationSSA(inctiles++);
+  //Render_Scene_Parts_RegularSSA9(inctiles++);
+   Render_Scene_Parts_RegularSSA5(inctiles++);
+   //Render_Scene_StochasticSSA(inctiles++,StochasticSamples);
+   //Render_Adaptive_SSA_Tiles(inctiles++);
    //image(test,0,0);
    //image(test2,0,0);
    //RenderSceneMAXintPartRenderSceneMAX();
@@ -125,6 +129,8 @@ void Render_Adaptive_SSA_Tiles(int tile){
     drawupdate = false;
     return;
    }
+  
+
   PImage Adapt = new PImage(TILESIZE*2,TILESIZE*2); //<>//
   
   int ia = TILESIZE*(tile%numXtiles);
@@ -134,7 +140,7 @@ void Render_Adaptive_SSA_Tiles(int tile){
    loadPixels();
   for(int i = 0;i<TILESIZE;++i)
         for(int j = 0;j<TILESIZE;++j){        
-         pixels[XRES*(ja+j)+(ia+i)] = Adapt.pixels[j*TILESIZE+i];
+         pixels[XRES*(ja+j)+(ia+i)] = Adapt.pixels[(j)*TILESIZE+(i)];
         }
       updatePixels();
   }

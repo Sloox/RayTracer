@@ -1,0 +1,14 @@
+PLIGHT USAGE: POS(X,Y,Z) - COL(R,G,B)
+1.0,1.0,0.0,1.0,1.0,1.0
+DIRLIGHT USAGE : ID-POS(X,Y,Z)-COL(R,G,B)
+1.0,1.0,-1.0,1.0,1.0,1.0
+AMBIENCE  USAGE: COL(R,G,B)
+0.1,0.1,0.1
+SPHERE -COOKTORRENCE- USAGE:[-ID-Center(X,Y,Z)-Radius-Diffuse-DCol(R,G,B)-SpecPower(-1=none)-SpecCol(R,G,B)-emiisveCol(R,G,B)-Reflect-Refract-Rindex,DBEERCONST,CTRoughness,CTFresnelReflectance,CTK-TextureLocation-LIGHT-BumpLoc-NoiseText
+1,-1.0,0.0,1.0,0.5,0.0,1.0,1.0,1.0,10.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.6,0.0,1.0,0.8,0.2,FALSE
+SPHERE -COOKTORRENCE-  USAGE:[-ID-Center(X,Y,Z)-Radius-Diffuse-DCol(R,G,B)-SpecPower(-1=none)-SpecCol(R,G,B)-emiisveCol(R,G,B)-Reflect-Refract-Rindex,DBEERCONST,CTRoughness,CTFresnelReflectance,CTK-TextureLocation-LIGHT-BumpLoc-NoiseText
+2,0.0,0.0,1.0,0.5,1.0,1.0,1.0,1.0,10.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.6,0.0,1.0,0.8,0.2,FALSE
+SPHERE USAGE:[-ID-Center(X,Y,Z)-Radius-Diffuse-DCol(R,G,B)-SpecPower(-1=none)-SpecCol(R,G,B)-emiisveCol(R,G,B)-Reflect-Refract-Rindex,DBEERCONST,CTRoughness,CTFresnelReflectance,CTK-TextureLocation-LIGHT-BumpLoc-NoiseText
+3,2.0,0.0,1.0,0.5,1.0,1.0,1.0,1.0,-100000.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,1.6,0.0,FALSE
+IPLANE  USAGE:[-ID-AXIS(X,Y,Z)-DISTFROMORIGN-Diffuse-DCol(R,G,B)-SpecPower(-1=none)-SpecCol(R,G,B)-emiisveCol(R,G,B)-Reflect-Refract-Rindex,DBEERCONST-LIGHT-TextureLocation-BumpLoc-NoiseText
+4,0.0,1.5,0.0,2.0,1.0,1.0,1.0,1.0,10000.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,$,$,2

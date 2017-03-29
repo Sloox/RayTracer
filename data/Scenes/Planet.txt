@@ -9,6 +9,6 @@ SPHERE
 SPHERE
 2,3.0,0.0,9.0,0.3,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,\data\Textures\moon.jpg,\data\Textures\moon.jpg
 SPHERE
-2,-3.0,0.0,24.0,6.0,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,\data\Textures\Jupiter.jpg,\data\Textures\Jupiter.jpg
+2,-3.0,0.0,24.0,6.0,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,\data\Textures\lorem.jpg,\data\Textures\lorem.jpg
 SPHERE
 2,5.0,0.0,9.0,0.9,1.0,1.0,1.0,1.0,100.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,\data\Textures\Mars.jpg,\data\Textures\Mars.jpg

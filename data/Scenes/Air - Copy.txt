@@ -1,0 +1,14 @@
+PLIGHT USAGE: POS(X,Y,Z) - COL(R,G,B)
+0.0,0.0,1.0,1.0,1.0,1.0
+AMBIENCE  USAGE: COL(R,G,B)
+0.1,0.1,0.1
+SPHERE USAGE:[-ID-Center(X,Y,Z)-Radius-Diffuse-DCol(R,G,B)-SpecPower(-1=none)-SpecCol(R,G,B)-emiisveCol(R,G,B)-Reflect-Refract-Rindex,DBEERCONST,CTRoughness,CTFresnelReflectance,CTK-TextureLocation-LIGHT-BumpLoc-NoiseText
+1,1.0,0.0,2.0,1.0,1.0,1.0,1.0,1.0,10000.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.6,0.0,FALSE
+SPHERE USAGE:[-ID-Center(X,Y,Z)-Radius-Diffuse-DCol(R,G,B)-SpecPower(-1=none)-SpecCol(R,G,B)-emiisveCol(R,G,B)-Reflect-Refract-Rindex,DBEERCONST,CTRoughness,CTFresnelReflectance,CTK-TextureLocation-LIGHT-BumpLoc-NoiseText
+2,-1.0,0.0,2.0,1.0,1.0,1.0,1.0,1.0,10000.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.6,0.0,FALSE
+IPLANE
+8,0.0,1.0,0.0,2.0,1.0,1.0,1.0,1.0,1000.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,$,$
+IPLANE
+9,1.0,0.0,0.0,-2.0,1.0,1.0,1.0,1.0,1000.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,FALSE,$,$
+AABOX
+10,0.0,-1.0,0.0,0.5,0.5,0.5,1.0,1.0,1.0,1.0,1000.0,1.0,1.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.3,FALSE,$,$
